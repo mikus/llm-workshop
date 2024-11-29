@@ -1,0 +1,497 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# LLM Workshop\n## Lab 1: Introduction to LangChain\n\nThis notebook demonstrates how to use pre-trained Large Language Models (LLM) for text generation. LLMs are trained on massive amounts of data, making them capable of solving several NLP tasks.\n[LangChain](https://python.langchain.com/docs/get_started/introduction#get-started) offers several modules that simplifies the use of LLMs for inference. In this notebook, we will use LangChain's prompt templates to effectively solve different tasks with minimal lift.\n\n__Jupyter notebooks environment__:\n\n* Jupyter notebooks allow creating and sharing documents that contain both code and rich text cells. If you are not familiar with Jupyter notebooks, read more [here](https://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html).\n* This is a quick-start demo to bring you up to speed on coding and experimenting with machine learning. Move through the notebook __from top to bottom__.\n* Run each code cell to see its output. To run a cell, click within the cell and press __Shift+Enter__, or click __Run__ from the top of the page menu.\n* A `[*]` symbol next to the cell indicates the code is still running. A `[#]` symbol, where # is an integer, indicates it is finished.\n* Beware, __some code cells might take longer to run__, sometimes 5-10 minutes (depending on the task, installing packages and libraries, training models, etc.)\n    \n    \nPlease work top to bottom of this notebook and don't skip sections as this could lead to error messages due to missing code."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Setup\nLet's install necessary libraries"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "shellscript",
+            "source": [
+                "npm install"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "",
+                                "up to date, audited 54 packages in 852ms",
+                                "",
+                                "8 packages are looking for funding",
+                                "  run `npm fund` for details",
+                                "",
+                                "found 0 vulnerabilities",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "And import what is needed"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// read local environment variables from .env\nrequire('dotenv').config();\n\n// This module is built into the notebook. You do not need to install this.\nconst { display } = require('node-kernel');"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## What is LangChain?\n\n> LangChain is a framework for developing applications powered by large language models (LLMs).\n\n**TL;DR** LangChain makes the complicated parts of working & building with language models easier. It helps do this in two ways:\n\n1. **Integration** - Bring external data, such as your files, other applications, and API data, to LLMs\n2. **Agents** - Allows LLMs to interact with its environment via decision making and use LLMs to help decide which action to take next"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "To build effective Generative AI applications, it is key to enable LLMs to interact with external systems. This makes models data-aware and agentic, meaning they can understand, reason, and use data to take action in a meaningful way. The external systems could be public data corpus, private knowledge repositories, databases, applications, APIs, or access to the public internet via Google Search.\n\nHere are a few patterns where LLMs can be augmented with other systems:\n\n- Convert natural language to SQL, executing the SQL on database, analyze and present the results\n- Calling an external webhook or API based on the user query\n- Synthesize outputs from multiple models, or chain the models in a specific order\n\nIt may look trivial to plumb these calls together and orchestrate them but it becomes a mundane task to write glue code again and again e.g. for every different data connector or a new model. That's where LangChain comes in!\n\n![Augmenting LLMs](https://storage.googleapis.com/gweb-cloudblog-publish/images/Patterns_augmenting_LLMs_with_external_syste.max-900x900.jpg)"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Why LangChain?\n\nLangChain's modular implementation of components and common patterns combining these components makes it easier to build complex applications based on LLMs. LangChain enables these models to connect to data sources and systems as agents to take action.\n\n1. **Components** are abstractions that works to bring external data, such as your documents, databases, applications,APIs to language models. LangChain makes it easy to swap out abstractions and components necessary to work with LLMs.\n\n2. **Agents** enable language models to communicate with its environment, where the model then decides the next action to take. LangChain provides out of the box support for using and customizing 'chains' - a series of actions strung together.\n\nThough LLMs can be straightforward (text-in, text-out) you'll quickly run into friction points that LangChain helps with once you develop more complicated applications."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Using OpenAI for Inference\n\n[OpenAI](https://openai.com/) provides access to state-of-the-art large language models (LLMs) and other foundational AI models that empower developers to create a variety of applications, from chatbots and content generation to advanced reasoning and problem-solving systems. With a focus on usability, OpenAI offers APIs that make it straightforward to integrate these models into your workflows, enabling developers to fine-tune, customize, or use pre-trained models for specific tasks.\n\nThe OpenAI platform prioritizes developer experience, scalability, and flexibility. Its models, including GPT-4 and its predecessors, are optimized for handling tasks of varying complexity. OpenAI also supports practical cost management by allowing developers to choose between different model sizes, reserving high-performance models for tasks requiring advanced capabilities while leveraging smaller models for simpler use cases.\n\nIn this workshop, we will primarily use LLMs through OpenAI APIs.\n\n**It’s recommended to adopt cost-efficient practices when using OpenAI, such as using smaller models for straightforward tasks and reserving larger models for complex problem-solving.**\n\nLearn more about [OpenAI pricing](https://openai.com/api/pricing/), and explore cost-effective usage patterns for your specific needs."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### LangChain & OpenAI\n\n[OpenAI models](https://platform.openai.com/docs/models) are fully integrated with the [LangChain JavaScript SDK](https://js.langchain.com), making it easier to build powerful, generative AI applications. LangChain provides seamless access to OpenAI's GPT models, allowing developers to implement complex workflows, manage prompts, and connect AI-driven features with external data sources.\n\n- [LangChain OpenAI Integration Documentation](https://www.npmjs.com/package/@langchain/openai)"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Import libaries"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { ChatOpenAI } from \"@langchain/openai\";"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Define LangChain Models using the OpenAI API"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "/********** Select the LLM *************/\nmodelName = \"gpt-4o-mini\";\n/**************************************/\nconst chat = new ChatOpenAI({\n    apiKey: process.env.OPENAI_API_KEY,\n    modelName: modelName,\n});"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "**Try it Yourself!**\n\nTry different prompts and observe the responses generated by the model.\n\nNote: Results may not be factually accurate and may be based on false assumptions."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var response = await chat.invoke(\"What is the capital of Spain?\");\n\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The capital of Spain is Madrid."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Prompt Templates\n\nThe input to the LLM (or any foundational model) is called a prompt. Prompts are typically in the form of text. It provides the LLM with all the necessary information to produce the respective response.\nPrompt templates are parameterized model inputs serving as pre-defined recipes for LLMs. These templates can be reusable and enables LLMs to adapt to more number of tasks with minimal effort."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### String PromptTemplates\nThese prompt templates are used to format a single string, and generally are used for simpler inputs. For example, a common way to construct and use a PromptTemplate is as follows:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { PromptTemplate } from \"@langchain/core/prompts\";\n\nconst promptTemplate = PromptTemplate.fromTemplate(\n  \"Tell me a joke about {topic}\"\n);\n\nvar template = await promptTemplate.invoke({ topic: \"cats\" });\ntemplate;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "StringPromptValue {",
+                                "  lc_serializable: \u001b[33mtrue\u001b[39m,",
+                                "  lc_kwargs: {",
+                                "    value: \u001b[32m'Tell me a joke about cats'\u001b[39m",
+                                "  },",
+                                "  lc_namespace: [",
+                                "    \u001b[32m'langchain_core'\u001b[39m,",
+                                "    \u001b[32m'prompt_values'\u001b[39m",
+                                "  ],",
+                                "  value: \u001b[32m'Tell me a joke about cats'\u001b[39m",
+                                "}"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "response = await chat.invoke(template);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "Why was the cat sitting on the computer?",
+                                "",
+                                "Because it wanted to keep an eye on the mouse!"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Variable Number of Inputs\n\nWe can use multiple inputs while defining a prompt template.\nNote that when using multiple inputs, the input keys should match the keys in the prompt template."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const multiInputPromptTemplate = PromptTemplate.fromTemplate(\n    \"Tell me a {content_type} about a {topic}.\"\n);\n\ntemplate = await multiInputPromptTemplate.invoke({ content_type: \"bedtime story\", topic: \"cat\" });\ntemplate;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "StringPromptValue {",
+                                "  lc_serializable: \u001b[33mtrue\u001b[39m,",
+                                "  lc_kwargs: {",
+                                "    value: \u001b[32m'Tell me a bedtime story about a cat.'\u001b[39m",
+                                "  },",
+                                "  lc_namespace: [",
+                                "    \u001b[32m'langchain_core'\u001b[39m,",
+                                "    \u001b[32m'prompt_values'\u001b[39m",
+                                "  ],",
+                                "  value: \u001b[32m'Tell me a bedtime story about a cat.'\u001b[39m",
+                                "}"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "response = await chat.invoke(template);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "**The Moonlight Adventure of Whiskers the Cat**",
+                                "",
+                                "Once upon a time, in a quaint little village nestled between rolling hills, there lived a fluffy gray cat named Whiskers. Whiskers had shiny emerald eyes that sparkled like the stars at night. He lived with a kind elderly lady named Mrs. Thompson, who always took great care of him. Every evening, after a warm bowl of milk and a cozy cuddle, Whiskers would settle down in his favorite spot by the window to watch the world outside.",
+                                "",
+                                "One particular night, as the moon hung high in the sky glowing like a giant pearl, Whiskers noticed something strange. A flicker of light danced in the garden, just beyond the old oak tree. Curiosity ignited within him, and he couldn’t resist the pull of adventure. With a soft purr, he quietly padded across the wooden floor, slipped through the cat flap, and into the cool night air.",
+                                "",
+                                "As he stepped into the garden, Whiskers discovered the source of the shimmering light: a tiny creature with delicate, translucent wings flitting about a patch of daisies. It was a moonlight fairy named Lila, and she was gathering beams of moonlight to sprinkle across the sleeping world.",
+                                "",
+                                "“Hello, Whiskers!” Lila chirped, her voice ringing like a gentle bell. “I’ve seen you watching from the window. Would you like to join me on a midnight adventure?”",
+                                "",
+                                "Whiskers’ heart raced with excitement. “Oh, yes! I would love that!” he replied, his tail twitching in delight.",
+                                "",
+                                "With a wave of her tiny wand, Lila sprinkled moonlight dust on Whiskers, and suddenly, he felt lighter than air! He floated up beside her, and together they soared into the night sky, past the village rooftops and into a realm filled with twinkling stars.",
+                                "",
+                                "As they zoomed through the cosmos, Lila showed Whiskers wondrous sights—the glowing constellations, the shimmering rings of Saturn, and shooting stars that painted the sky with trails of light. Whiskers discovered that he could speak with the stars, and they shared stories of distant galaxies and ancient secrets.",
+                                "",
+                                "“Every star has a story to tell,” Lila explained, her wings fluttering like the breeze. “They light up our nights and keep our dreams alive.”",
+                                "",
+                                "They landed softly on a fluffy cloud, where Lila introduced Whiskers to a gathering of woodland creatures who had also been sprinkled with moonlight dust. There was Benny the wise old owl, Clara the cheerful rabbit, and even a shy mouse named Oliver who loved to tell silly jokes. They all laughed and danced under the luminous glow of the moon, sharing tales of their adventures and dreams.",
+                                "",
+                                "As midnight approached, Lila turned to Whiskers, her wings flickering with excitement. “It’s time for you to return home, but don’t worry. Every time you see the moonlight, remember this adventure is just a heartbeat away.”",
+                                "",
+                                "With a gentle wave of her wand, Lila sprinkled more moonlight dust over Whiskers, and in an instant, he found himself back in his cozy home. He settled comfortably in his window nook, his heart still fluttering with joy from the night’s escapades.",
+                                "",
+                                "As Whiskers closed his eyes, he felt the warmth of the moonlight on his fur and knew that every night he could dream of stars and adventures. And perhaps, just perhaps, Lila would come for him again.",
+                                "",
+                                "With sweet dreams bubbling in his mind, Whiskers purred softly and drifted off to sleep, ready for whatever magical adventures awaited him in his dreams.",
+                                "",
+                                "And so, every night, whenever the moon shone brightly, Whiskers the cat would look out his window, ready to embrace the magic of the night.",
+                                "",
+                                "**The End.**"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Chat\nChat models are language models that use a sequence of messages as inputs and return messages as outputs (as opposed to using plain text). "
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "#### Chat Roles\nRoles are used to distinguish between different types of messages in a conversation and help the chat model understand how to respond to a given sequence of messages.\n\n* **system** - Used to tell the chat model how to behave and provide additional context. Not supported by all chat model providers.\n* **user** - Represents input from a user interacting with the model, usually in the form of text or other interactive input.\n* **assistant** - Represents a response from the model, which can include text or a request to invoke tools.\n* **tool** - A message used to pass the results of a tool invocation back to the model after external data or processing has been retrieved. Used with chat models that support tool calling."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { HumanMessage } from \"@langchain/core/messages\";\n\nresponse = await chat.invoke([new HumanMessage(\"Hello, how are you?\")]);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "Hello! I'm just a computer program, so I don't have feelings, but I'm here and ready to help you. How can I assist you today?"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { SystemMessage } from \"@langchain/core/messages\";\n\nresponse = await chat.invoke(\n    [\n        new SystemMessage(\"You are a nice AI bot that helps a user figure out what to eat in one short sentence\"),\n        new HumanMessage(\"I like tomatoes, what should I eat?\"),\n    ]\n);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "How about a fresh caprese salad with mozzarella, basil, and a drizzle of balsamic glaze?"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "You can also pass more chat history w/ responses from the AI"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { AIMessage } from \"@langchain/core/messages\";\n\nvar nextResponse = await chat.invoke(\n    [\n        new SystemMessage(\"You are a nice AI bot that helps a user figure out what to eat in one short sentence\"),\n        new HumanMessage(\"I like tomatoes, what should I eat?\"),\n        new AIMessage(response.content),\n        new HumanMessage(\"What are the ingredients required for making it?\"),\n    ]\n);\ndisplay.markdown(nextResponse.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "You'll need fresh tomatoes, mozzarella cheese, fresh basil leaves, balsamic glaze, olive oil, salt, and pepper."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Prompt Templates for Chats\n\n`ChatPromptTemplates` are designed for chat models. Conversational tasks typically involve a `system` message, `user` message and an `assistant` message.\n\nIn the following example, we would only use the `system` message and `user` message as this would be a one-off conversation."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { ChatPromptTemplate } from \"@langchain/core/prompts\";\n\nconst chatPromptTemplate = ChatPromptTemplate.fromMessages([\n  [\"system\", \"You are a travel agent specialized in planning activities for tourists.\"],\n  [\"user\", \"Plan a three day itenerary for a trip to {city}.\"],\n]);\n\ntemplate = await chatPromptTemplate.invoke({ city: \"Paris\" });\ntemplate;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "ChatPromptValue {",
+                                "  lc_serializable: \u001b[33mtrue\u001b[39m,",
+                                "  lc_kwargs: {",
+                                "    messages: [",
+                                "      SystemMessage {",
+                                "        \"content\": \"You are a travel agent specialized in planning activities for tourists.\",",
+                                "        \"additional_kwargs\": {},",
+                                "        \"response_metadata\": {}",
+                                "      },",
+                                "      HumanMessage {",
+                                "        \"content\": \"Plan a three day itenerary for a trip to Paris.\",",
+                                "        \"additional_kwargs\": {},",
+                                "        \"response_metadata\": {}",
+                                "      }",
+                                "    ]",
+                                "  },",
+                                "  lc_namespace: [",
+                                "    \u001b[32m'langchain_core'\u001b[39m,",
+                                "    \u001b[32m'prompt_values'\u001b[39m",
+                                "  ],",
+                                "  messages: [",
+                                "    SystemMessage {",
+                                "      \"content\": \"You are a travel agent specialized in planning activities for tourists.\",",
+                                "      \"additional_kwargs\": {},",
+                                "      \"response_metadata\": {}",
+                                "    },",
+                                "    HumanMessage {",
+                                "      \"content\": \"Plan a three day itenerary for a trip to Paris.\",",
+                                "      \"additional_kwargs\": {},",
+                                "      \"response_metadata\": {}",
+                                "    }",
+                                "  ]",
+                                "}"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "response = await chat.invoke(template);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "Certainly! Here’s a three-day itinerary for a trip to Paris that includes a mix of iconic landmarks, cultural experiences, and local cuisine.",
+                                "",
+                                "### Day 1: Classic Paris",
+                                "",
+                                "**Morning:**",
+                                "- **Breakfast at a Café:** Start your day at a traditional Parisian café. Enjoy a croissant and café au lait.",
+                                "- **Visit the Eiffel Tower:** Arrive early to beat the crowds. You can either take the lift to the summit or enjoy the views from the second floor.",
+                                "",
+                                "**Afternoon:**",
+                                "- **Lunch at Les Invalides:** Try a bistro near the Les Invalides complex. After lunch, visit the Musée de l'Armée within the complex to learn about France's military history.",
+                                "- **Stroll in the Champ de Mars:** After exploring, take a leisurely walk in the park directly under the Eiffel Tower.",
+                                "",
+                                "**Evening:**",
+                                "- **Dinner in Montmartre:** Head to this charming district for dinner. A recommendation is Le Consulat or La Mère Catherine. ",
+                                "- **Sacré-Cœur Basilica:** As the sun sets, walk up to the Basilica for stunning views over Paris and enjoy the ambiance of the area.",
+                                "",
+                                "### Day 2: Art and Culture",
+                                "",
+                                "**Morning:**",
+                                "- **Breakfast at a Local Bakery:** Enjoy pastries at a boulangerie, such as pain au chocolat or quiche.",
+                                "- **Louvre Museum:** Spend the morning exploring the world’s largest art museum. Don’t miss the Mona Lisa and other masterpieces!",
+                                "",
+                                "**Afternoon:**",
+                                "- **Lunch near the Louvre:** Head to a nearby cafe, such as Café Marly, and enjoy views of the glass pyramid.",
+                                "- **Visit the Musée d'Orsay:** Transfer to this fantastic museum housed in a former railway station. The Impressionist collections are a highlight.",
+                                "",
+                                "**Evening:**",
+                                "- **Dinner in Saint-Germain-des-Prés:** Explore this lively neighborhood and dine at a classic brasserie like Les Deux Magots or Café de Flore.",
+                                "- **Seine River Cruise:** End your day with a sunset cruise along the Seine for beautiful views of Paris’s illuminated landmarks.",
+                                "",
+                                "### Day 3: Neighborhoods and History",
+                                "",
+                                "**Morning:**",
+                                "- **Breakfast at Café de Flore:** Experience breakfast at this iconic café that has been a favorite of many famous artists.",
+                                "- **Le Marais:** Explore this historic district known for its charming streets, boutiques, and the Place des Vosges. Visit the Picasso Museum if time allows.",
+                                "",
+                                "**Afternoon:**",
+                                "- **Lunch in Le Marais:** Grab a bite at a local falafel shop like L’As du Fallafel or try a trendy café.",
+                                "- **Visit Notre-Dame Cathedral:** While renovations may limit access, admire the stunning architecture from the outside. Take a walk along the Seine.",
+                                "- **Sainte-Chapelle:** Visit this chapel known for its breathtaking stained glass windows.",
+                                "",
+                                "**Evening:**",
+                                "- **Dinner in the Latin Quarter:** Experience the vibrant atmosphere of this historic area. Try traditional French cuisine at a local bistro like La Coupole.",
+                                "- **Explore the Latin Quarter:** After dinner, take a leisurely stroll to discover lively streets, bookstores, and nightlife.",
+                                "",
+                                "### Tips:",
+                                "- Consider purchasing a Paris Museum Pass for easier access to the attractions.",
+                                "- Make dinner reservations in advance, especially for popular restaurants.",
+                                "- Use the Metro for convenient transportation around the city.",
+                                "",
+                                "Enjoy your trip to Paris! Bon voyage!"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                ""
+            ],
+            "outputs": []
+        }
+    ]
+}

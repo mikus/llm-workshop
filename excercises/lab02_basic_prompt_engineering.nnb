@@ -1,0 +1,684 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# LLM Workshop\n## Lab 2: Basic Prompt Engineering\n\nIn this notebook, we will explain the concept of prompt engineering using some common use cases. \n\n__What is prompt engineering?__\n\nWe can improve the quality of the generated responses by constructing (or engineering) the prompts in different ways. We call this process __prompt engineering__. This is usually an __iterative process__ and it can take a few attempts to find the best spot for your problem. \n\nWe can list a few suggestions to help you construct better prompts:\n* __Write clear and specific instructions.__\n* __Highlight or specify the part of the prompt where the model should execute on.__\n* __Add details or restrictions to your prompt.__\n* __If the problem requires executing multiple steps, instruct the model to follow a step-by-step approach.__\n\nFinding the optimum prompts is an iterative process. You may need to run some experiments and measure the quality of the generated outputs.\n\n\n__Example Problems:__\n\nWe will focus on some common ML tasks with the __Titan text lite model__. We instruct the model through the prompt messages, so pay attention to how we construct those messages. \n\nThese are the topics we cover:\n* __1. Text summarization__\n* __2. Question Answering__\n* __3. Text Generation__\n* __4. In-context learning: Zero-shot, one-shot, few-shot learning__\n* __5. Chain of thought concept__\n\n-----"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Setup\nLet's install necessary libraries"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "shellscript",
+            "source": [
+                "npm install"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "",
+                                "up to date, audited 54 packages in 766ms",
+                                "",
+                                "8 packages are looking for funding",
+                                "  run `npm fund` for details",
+                                "",
+                                "found 0 vulnerabilities",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "And import what is needed"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// read local environment variables from .env\nrequire('dotenv').config();\n\n// This module is built into the notebook. You do not need to install this.\nconst { display } = require('node-kernel');\n\nimport { ChatOpenAI } from \"@langchain/openai\";\nconst chat = new ChatOpenAI({\n    apiKey: process.env.OPENAI_API_KEY,\n    modelName: \"gpt-4-turbo\",\n});\n\nimport { PromptTemplate, FewShotPromptTemplate } from \"@langchain/core/prompts\";\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Example problems"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### 1. Text sumarization\nWith text summarization, the main purpose is to create a shorter version of a given text while preserving the relevant information in it. \n\nWe use the following text from the **Capabilities** section of [OpeanAI o1 model from Wikipedia](https://en.wikipedia.org/wiki/OpenAI_o1).\n\n\n<div style=\"font-size:12pt;\">\n\"According to OpenAI, o1 has been trained using a new optimization algorithm and a dataset specifically tailored to it; while also meshing in reinforcement learning into its training. OpenAI described o1 as a complement to GPT-4o rather than a successor.\n\no1 spends additional time thinking (generating a chain of thought) before generating an answer, which makes it more effective for complex reasoning tasks, particularly in science and mathematics. Compared to previous models, o1 has been trained to generate long \"chains of thought\" before returning a final answer. According to Mira Murati, this ability to think before responding represents a new, additional paradigm, which is improving model outputs by spending more computing power when generating the answer, whereas the model scaling paradigm improves outputs by increasing the model size, training data and training compute power. OpenAI's test results suggest a correlation between accuracy and the logarithm of the amount of compute spent thinking before answering.\n\no1-preview performed approximately at a PhD level on benchmark tests related to physics, chemistry, and biology. On the American Invitational Mathematics Examination, it solved 83% (12.5/15) of the problems, compared to 13% (1.8/15) for GPT-4o. It also ranked in the 89th percentile in Codeforces coding competitions. o1-mini is faster and 80% cheaper than o1-preview. It is particularly suitable for programming and STEM-related tasks, but does not have the same \"broad world knowledge\" as o1-preview.\n\nOpenAI noted that o1's reasoning capabilities make it better at adhering to safety rules provided in the prompt's context window. OpenAI reported that during a test, one instance of o1-preview exploited a misconfiguration to succeed at a task that should have been infeasible due to a bug. OpenAI also granted early access to the UK and US AI Safety Institutes for research, evaluation, and testing. According to OpenAI's assessments, o1-preview and o1-mini crossed into \"medium risk\" in CBRN (biological, chemical, radiological, and nuclear) weapons. Dan Hendrycks wrote that \"The model already outperforms PhD scientists most of the time on answering questions related to bioweapons.\" He suggested that these concerning capabilities will continue to increase.\"\n</div>"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's start with the first summarization example below. We pass this text as well as the instruction to summarize it. The instruction part of the prompt becomes __Summarize it__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var text = \"According to OpenAI, o1 has been trained using a new optimization \\\nalgorithm and a dataset specifically tailored to it; while also meshing \\\nin reinforcement learning into its training. OpenAI described o1 as a \\\ncomplement to GPT-4o rather than a successor. \\\no1 spends additional time thinking (generating a chain of thought) before \\\ngenerating an answer, which makes it more effective for complex reasoning \\\ntasks, particularly in science and mathematics. Compared to previous models, \\\no1 has been trained to generate long \\\"chains of thought\\\" before returning \\\na final answer. According to Mira Murati, this ability to think before \\\nresponding represents a new, additional paradigm, which is improving model \\\noutputs by spending more computing power when generating the answer, whereas \\\nthe model scaling paradigm improves outputs by increasing the model size, \\\ntraining data and training compute power. OpenAI's test results suggest \\\na correlation between accuracy and the logarithm of the amount of compute \\\nspent thinking before answering. \\\no1-preview performed approximately at a PhD level on benchmark tests related \\\nto physics, chemistry, and biology. On the American Invitational Mathematics \\\nExamination, it solved 83% (12.5/15) of the problems, compared to 13% (1.8/15) \\\nfor GPT-4o. It also ranked in the 89th percentile in Codeforces coding competitions. \\\no1-mini is faster and 80% cheaper than o1-preview. It is particularly suitable for \\\nprogramming and STEM-related tasks, but does not have the same \\\"broad world knowledge\\\" \\\nas o1-preview. \\\nOpenAI noted that o1's reasoning capabilities make it better at adhering to safety \\\nrules provided in the prompt's context window. OpenAI reported that during a test, \\\none instance of o1-preview exploited a misconfiguration to succeed at a task that \\\nshould have been infeasible due to a bug. OpenAI also granted early access to the UK \\\nand US AI Safety Institutes for research, evaluation, and testing. According to OpenAI's \\\nassessments, o1-preview and o1-mini crossed into \\\"medium risk\\\" in CBRN (biological, \\\nchemical, radiological, and nuclear) weapons. Dan Hendrycks wrote that \\\"The model \\\nalready outperforms PhD scientists most of the time on answering questions related \\\nto bioweapons.\\\" He suggested that these concerning capabilities will continue to increase.\";\n\nvar prompt = \"The following is a text about OpenAI o1 model. Summarize it \\\nText: \" + text;\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The OpenAI o1 model is designed with a new optimization algorithm and specifically tailored dataset, incorporating reinforcement learning techniques during training. Positioned as a complement to GPT-4o rather than a successor, o1 focuses on generating extended \"chains of thought\" before delivering answers, enhancing its performance in complex reasoning tasks in areas like science and mathematics. o1-preview, a variant of the model, exhibits PhD-level competence in physics, chemistry, and biology, solving 83% of problems on the American Invitational Mathematics Examination and ranking in the 89th percentile in Codeforces coding competitions. This model expends more computational power to think before answering, correlating with increased accuracy. Conversely, the o1-mini version is 80% less costly and faster but lacks the broad knowledge base of o1-preview, though it excels in programming and STEM-related tasks.",
+                                "",
+                                "Despite these advancements, the model displayed concerning capabilities during tests, such as exploiting misconfigurations and potentially posing medium risks around CBRN weapon contexts. OpenAI has allowed early access to AI safety institutes in the UK and US to further research and test these capabilities, with insights suggesting that the model's proficiency, particularly in bioweapons-related areas, might continue to grow, posing new safety and ethical challenges."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Nice. This text is shorter. We can set the desired lenght of the summary by adding more constraints to the instructions. Let's create a one-sentence summary of this text. The instruction part of the prompt becomes the following: __Summarize it in one sentence__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"The following is a text about OpenAI o1 model. Summarize it in one sentence\\\nText: \" + text;\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "OpenAI's o1 model, which is designed to complement GPT-4o, utilizes a novel optimization algorithm, a tailored dataset, and reinforcement learning to effectively generate \"chains of thought\" before answering, enhancing its performance in complex reasoning tasks such as science and mathematics, and demonstrating proficiency at PhD level and high success rates in standardized tests and competitions, though with an acknowledgment of some safety and ethical risks."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Nice! The model generated one sentence summary.\n\n---"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### 2. Question Answering\n\nIn Question Answering problem, a Machine Learning model answers some questions using some provided context. Here as context, we will use the previous text about OpenAI's o1 model. "
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "The first question is asking aboout the names of the models mentioned in the text. \n\nThe instruction section of the prompt is __What are the names of the models in the following text?__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"What are the names of the models in the following text? \\\nText: \" + text;\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The names of the models mentioned in the text are:",
+                                "",
+                                "1. o1",
+                                "2. GPT-4o",
+                                "3. o1-preview",
+                                "4. o1-mini"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Nice. We get all of the llm models mentioned in the text. "
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's try to learn something specific about the document. For example, how many PHD related problems this model can solve. \n\nThe instruction section of the prompt is __How many PHD related problems OpenAI's o1 model can solve according to the following text?__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"How many PHD related problems OpenAI's o1 model can solve according to the following text? \\\nText: \" + text;\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "According to the text provided, the OpenAI's o1 model, specifically o1-preview, performed at a PhD level on benchmark tests related to physics, chemistry, and biology. Additionally, it solved 83% of the problems on the American Invitational Mathematics Examination. This indicates that o1 has strong capabilities in solving PhD-level problems in these specific science fields and mathematics. However, the exact number of PhD-related problems o1 can solve is not quantified in the text in specific numerical terms beyond these general descriptions of its performance capabilities."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Nice. We were able to extract that information and return in the answer."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's try another example, this time without context. Context information may not be necessary for some questions. For example, we can ask some general questions like below."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"How many months are there in a year?\";\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "There are 12 months in a year."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__How many meters are in a mile?__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"How many meters are in a mile?\";\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "There are approximately 1609.34 meters in a mile."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__What is the result when you add up 2 and 9?__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"What is the result when you add up 2 and 9?\";\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The result when you add up 2 and 9 is 11."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "---"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### 3. Text Generation"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Text generation is one of the common use cases for Large Language Models. The main purpose is to generate some high quality text considering a given input. We will cover a few examples here."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__Customer service example:__\n\nLet's start with a customer feedback example. Assume we want to write an email to a customer who had some problems with a product that they purchased."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__Write an email from Acme company customer service \\\nbased on the following email that was received from a customer__\n\n__Customer email: \"I am not happy with this product. I had a difficult \\\ntime setting it up correctly because the instructions do not cover all \\\nthe details. Even after the correct setup, it stopped working after \\\na week.\"__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = \"Write an email from Acme company customer service \\\nbased on the following email that was received from a customer \\\nCustomer email: \\\"I am not happy with this product. I had a difficult \\\ntime setting it up correctly because the instructions do not cover all \\\nthe details. Even after the correct setup, it stopped working after \\\na week.\\\"\";\n\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "Subject: Your Concern with Acme Product – Let Us Help",
+                                "",
+                                "Dear [Customer Name],",
+                                "",
+                                "Thank you for reaching out to us. We are sorry to hear about the difficulties you’ve experienced with our product. At Acme Company, we aim to ensure every customer is satisfied with their purchase, and it sounds like we missed the mark this time.",
+                                "",
+                                "Regarding the setup process, we understand that clear instructions are crucial, and I apologize for any confusion caused by the information provided. We are continually looking to improve our guides and appreciate your feedback. To assist you further, I can offer to walk you through the setup process via a phone call or direct you to an online video tutorial that may provide additional clarity. Please let me know if that would be helpful.",
+                                "",
+                                "As for the issue with the product ceasing to function, this is certainly not the standard we strive for at Acme Company. We would like to rectify this immediately. I can arrange for a replacement to be sent to you promptly, or if you prefer, we can issue a full refund. Please confirm which option you would prefer.",
+                                "",
+                                "Additionally, we would appreciate if you could provide the serial number of the faulty unit, if accessible, so we can investigate this matter further to prevent such occurrences in the future.",
+                                "",
+                                "Once again, I apologize for any inconvenience this has caused you. We value your support and are committed to providing you with the quality you expect from us. Please let me know how you would like to proceed at your earliest convenience.",
+                                "",
+                                "Warm regards,",
+                                "",
+                                "[Your Name]",
+                                "Customer Service Representative",
+                                "Acme Company",
+                                "[Contact Information]"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Nice! The generated text asks customer to provide more details to resolve the issue."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__Generating product descriptions:__\n\nWe can use generative ai to write creative product descriptions for our products. In the example below, we create three product descriptions for a sunglasses product.\n\n__Product: Sunglasses.  \\\nKeywords: polarized, style, comfort, UV protection. \\\nCreate three variations of a detailed product \\\ndescription for the product listed above, each \\\nvariation of the product description must \\\nuse at least two of the listed keywords.__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt=\"Product: Sunglasses.  \\\nKeywords: polarized, style, comfort, UV protection. \\\nList three different product descriptions \\\nfor the product listed above using \\\nat least two of the provided keywords.\"\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "**Product Description 1:**",
+                                "Elevate your outdoor look with our Trendsetter Polarized Sunglasses. Featuring advanced polarized lenses, these sunglasses offer unmatched UV protection, ensuring your eyes are shielded from harmful rays. With their sleek design and lightweight frame, they promise style without sacrificing comfort. Perfect for any adventure, soak in the clarity and charm of Trendsetter Sunglasses.",
+                                "",
+                                "**Product Description 2:**",
+                                "Discover the ultimate in eye comfort and style with our ChicView Polarized Sunglasses. Crafted for those who demand both functionality and fashion, these sunglasses come equipped with premium polarized lenses that effectively block glare and provide comprehensive UV protection. The modern design complements any wardrobe choice, making it an ideal accessory for both casual outings and sophisticated events.",
+                                "",
+                                "**Product Description 3:**",
+                                "Experience clarity like never before with our VistaClear Polarized Sunglasses. Designed to offer superior comfort and elegant style, these sunglasses feature top-notch polarized lenses that enhance visual clarity and provide significant UV protection. Whether you’re driving, fishing, or just enjoying a sunny day, VistaClear keeps you stylishly protected from the sun’s harsh rays."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "---"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### 4. In-context learning\n\nAs pre-trained large language models learn from large and diverse data sources, they tend to build a holistic view of languages and text. This advantage allows them to learn from some input-output pairs that they are presented within the input texts. \n\nIn this section, we will explain this __\"in-context\"__ learning capability with some examples. Depending on the level of information presented to the model, we can use zero-shot, one-shot or few-shot learning. We start with the most extreme case, no information presented to the model. This is called __\"zero-shot-learning\"__."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "#### Zero-shot learning:\nAssume the model is given a translation task and an input word.\n\n__Translate English to Spanish \\\n cat ==>__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var template = PromptTemplate.fromTemplate(\n    `Translate the following word from English to Spanish \n    word: {word} \n    translation: `\n);\nvar prompt = await template.invoke({ word: \"cat\" });\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The translation of the word \"cat\" from English to Spanish is \"gato\" (for a male cat) or \"gata\" (for a female cat)."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "#### One-shot learning:\nWe can give the model one example and let it learn from the example to solve a problem. Below, we provide an example sentence about a cat and the model completes the second sentence about a table in a similar way.\n\n__Answer the last question \\\nquestion: what is a cat? \\\nanswer: cat is an animal \\\n\\##  \\\nlast question: what is a car?\\\nanswer: car is__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var template = PromptTemplate.fromTemplate(\n    `Answer the last question\n    question: what is a cat?\n    answer: cat is an animal\n    ##\n    last question: what is a {word}?\n    answer: {word} is `\n);\nvar prompt = await template.invoke({ word: \"car\" });\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "a vehicle typically with four wheels, powered by an internal combustion engine or electric motor, and used for transportation of people."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "#### Few-shot learning:\nWe can give the model multiple examples to learn from. Providing more examples can help the model produce more accurate results. Let's also change the style of the example answers by adding some __negation__ to them.\n\n__Answer the last question \\\nquestion: what is a car? \\\nanswer: car is not an animal \\\n\\## \\\nquestion: what is a cat? \\\nanswer: cat is not a vehicle \\\n\\## \\\nquestion: what is a shoe? \\\nanswer: shoe is__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const examplePrompt = PromptTemplate.fromTemplate(\n  `Question: {question}\n  Answer: {answer}`\n);\n\nconst examples = [\n  {\n    question: \"what is a car?\",\n    answer: \"car is not an animal\",\n  },\n  { \n    question: \"what is a cat?\",\n    answer: \"cat is not a vehicle\",\n  }\n];\n\nvar template = new FewShotPromptTemplate({\n  examples,\n  examplePrompt,\n  suffix: \"Question: {input}\",\n  inputVariables: [\"input\"],\n  prefix: \"Answer the last question\",\n});\n\nvar prompt = await template.format({\n  input: \"shoe is\",\n});\nconsole.log(prompt.toString());"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Answer the last question",
+                                "",
+                                "Question: what is a car?",
+                                "  Answer: car is not an animal",
+                                "",
+                                "Question: what is a cat?",
+                                "  Answer: cat is not a vehicle",
+                                "",
+                                "Question: shoe is",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "Shoe is not a food."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's try one more time. This time we remove the instruction and try to complete the last sentence."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var template = new FewShotPromptTemplate({\n    examples,\n    examplePrompt,\n    suffix: \"Question: {input}\",\n    inputVariables: [\"input\"],\n});\n\nvar prompt = await template.format({\ninput: \"shoe is\",\n});\nconsole.log(prompt.toString());\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "",
+                                "",
+                                "Question: what is a car?",
+                                "  Answer: car is not an animal",
+                                "",
+                                "Question: what is a cat?",
+                                "  Answer: cat is not a vehicle",
+                                "",
+                                "Question: shoe is",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "an object, not a living creature."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "It worked again. The model nicely followed the provided pattern.\n\n---"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### 5. Chain of thought concept\n\nChain of thought concept breaks down a problem into a series of intermediate reasoning steps. This way of thinking has significantly improved the quality of the outputs generated by the Large Language Models. \n\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's start with a simple problem. Although many problems may seem easy to us, some may be challenging to LLMs if they require solving intermediate steps before giving the final answer."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__Answer the following question.__\n\n__Question: When I was three times younger, my sister was__ \\\n__a year older than half of my age.__ \\\n__Now, I’m 42. How old is my sister now?__ \\\n\n__Answer:__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = `Answer the following question.\n\nQuestion: When I was three times younger, my sister was \\\na year older than half of my age. \\\nNow, I’m 42. How old is my sister now?\n\nAnswer: `\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "First, let's break down the information from the question:",
+                                "",
+                                "1. Currently, you are 42 years old.",
+                                "",
+                                "2. When you were \"three times younger,\" a not readily understood term literally but can be taken to mean when you were a third of your current age. This means you were 42 / 3 = 14 years old at that time.",
+                                "",
+                                "3. When you were 14, your sister was one year older than half your age at that time. Half your age at 14 is 14 / 2 = 7 years. Adding one year gives us 7 + 1 = 8 years. So, your sister was 8 years older than you when you were 14 years old.",
+                                "",
+                                "4. To find out your sister's age when you were 14, we add the extra 8 years to your age at that time. So, when you were 14, your sister was 14 + 8 = 22 years old then.",
+                                "",
+                                "5. From here, calculate the difference in age between the time when you were 14 and now. This gap is 42 - 14 = 28 years.",
+                                "",
+                                "6. Finally, add these 28 years to your sister's age when you were 14 to find her current age. So, when you were 14, she was 22, and adding 28 years to that gives 22 + 28 = 50 years.",
+                                "",
+                                "Your sister is currently 50 years old."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "The answer is __incorrect__! This is not a big surprise. Many Large Lanuage Models make these types of mistakes. In this case, the model skipped a few steps to solve the problem."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's try another idea. As we have seen in the __in-context__ learning topic, LLMs tend to learn from the provided inputs and apply those learnings to another problems. Here, we will first provide the step by step solution for the problem with different numbers and then ask the model to solve the original problem. "
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "__Answer the following question:__ \n\n__Question: When I was seven times younger, my sister was__ \\\n__2 years older than half of my age.__ \\\n__Now, I’m 70. How old is my sister now?__\n\n__Answer: When I was seven times younger, my sister was__\n__2 years older than half of my age.__ \\\n__So, my age at that wime was 70 / 7 = 10 years__ \\\n__and the age of the sister at that time was 10 / 2 + 2 = 7.__ \\\n__This implies that the sister is 3 years younger.__ \\\n__Now, when I’m 70 years and age of sister is 70 - 3__ \\\n__Age of sister is 67.__\n\n__Question: When I was 3 times younger, my sister was__ \\\n__a year older than half of my age.__ \\\n__Now I’m 48. How old is my sister now?__\n\n__Answer:__"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = `Answer the following question.\n\nQuestion: When I was seven times younger, my sister was\n2 years older than half of my age.\nNow, I’m 70. How old is my sister now?\n\nAnswer: When I was seven times younger, my sister was \\\n2 years older than half of my age. \\\nSo, my age at that wime was 70 / 7 = 10 years \\\nand the age of the sister at that time was 10 / 2 + 2 = 7. \\\nThis implies that the sister is 3 years younger. \\\nNow, when I’m 70 years and age of sister is 70 - 3 \\\nAge of sister is 67.\n\nQuestion: When I was three times younger, my sister was \\\na year older than half of my age. \\\nNow I’m 42. How old is my sister now?\n\nAnswer: `\n\nvar response = await chat.invoke(prompt);\ndisplay.markdown(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "To solve this problem, we first need to establish the relative ages of you and your sister \"when you were three times younger.\"",
+                                "",
+                                "If your current age is 42, then saying \"when I was three times younger\" is not a mathematically standard expression. Normally people mean by this that their past age is one-third of their current age. So, we start by calculating that:",
+                                "",
+                                "Your past age = 42 / 3 = 14 years.",
+                                "",
+                                "According to the problem, when you were 14 years old, your sister was a year older than half of your age at that time:",
+                                "",
+                                "Half of your age when you were 14 = 14 / 2 = 7,",
+                                "Sister's age then = 7 + 1 = 8 years.",
+                                "",
+                                "Now, we have established that when you were 14 years old, your sister was 8 years old. This gives us a way to calculate the age difference:",
+                                "",
+                                "Age difference = 14 (your age then) - 8 (sister's age then) = 6 years.",
+                                "",
+                                "If the sister was 6 years younger than you when you were 14, she will always be 6 years younger. Now that you are 42:",
+                                "",
+                                "Your sister's current age = 42 - 6 = 36 years old.",
+                                "",
+                                "Thus, your sister is now 36 years old."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "The model followed the given example and applied the same steps to solve the problem."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                ""
+            ],
+            "outputs": []
+        }
+    ]
+}
