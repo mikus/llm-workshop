@@ -1,0 +1,834 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# LLM Workshop\n## Lab 3: Chains and History\n\nThis notebook demonstrates the use of chat history and chains to build applications powered by LLMs.\n\nAdding chat history allows the context to persist across multiple sessions. This is particularly useful in conversational applications such as chatbots, where the system is required to follow the conversation by recalling past interactions.\n\nAn isolated LLM is quite capable in solving a diverse range of tasks. However, the complexity of the application's capabilities can be enhanced significantly by chaining multiple LLMs together. A chain parses a sequence of calls to various components which can include other chains.\n\n    \nPlease work top to bottom of this notebook and don't skip sections as this could lead to error messages due to missing code."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Setup\nLet's install necessary libraries"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "shellscript",
+            "source": [
+                "npm install"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "",
+                                "up to date, audited 61 packages in 876ms",
+                                "",
+                                "8 packages are looking for funding",
+                                "  run `npm fund` for details",
+                                "",
+                                "found 0 vulnerabilities",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "And import what is needed"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// read local environment variables from .env\nrequire('dotenv').config();\n\n// This module is built into the notebook. You do not need to install this.\nconst { display } = require('node-kernel');\n\nimport { ChatOpenAI } from \"@langchain/openai\";\nconst chat = new ChatOpenAI({\n    apiKey: process.env.OPENAI_API_KEY,\n    modelName: \"gpt-4o-mini\",\n});\n\nimport { PromptTemplate, ChatPromptTemplate } from \"@langchain/core/prompts\";"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Simple Chains\n\nWe can now combine LangChain modules like prompt and model using the `pipe()` method:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var template = `\nYou are an event manager. Given the type of event, time and location, write an invitation for the event.\nUse a\nEvent: {event}\nTime: {time}\nLocation: {location}\n`;\n\n// Define the prompt template from the string. The input variables are automatically inferred\nvar promptTemplate = PromptTemplate.fromTemplate(template);\n\n\n// Define the simple chain with the LLM chat and the prompt template\nvar chain = promptTemplate.pipe(chat);\n\n// Use the LLM chain to generate responses\nvar chainResponse = await chain.invoke(\n    {\n        \"event\": \"birthday\",\n        \"time\": \"December 17th, 8pm EST\",\n        \"location\": \"Bryant Park, New York\",\n    }\n);\n\n// Printing the response in a favorable format\nconsole.log(chainResponse);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "AIMessage {",
+                                "  \"id\": \"chatcmpl-AavVPA8ZlHlRFvhwmQQI6bLCVlq3O\",",
+                                "  \"content\": \"Subject: You're Invited to a Celebratory Birthday Bash!\\n\\nDear [Friend's Name],\\n\\nI’m excited to invite you to a special celebration in honor of my birthday! Join me for a night of fun, laughter, and unforgettable memories.\\n\\n**Date:** December 17th  \\n**Time:** 8 PM EST  \\n**Location:** Bryant Park, New York  \\n\\nLet’s embrace the festive spirit of the season together as we gather under the beautiful lights of Bryant Park. There will be delicious treats, great music, and plenty of joy to go around.\\n\\nPlease RSVP by December 10th so we can make the necessary arrangements.\\n\\nI can’t wait to celebrate with you!\\n\\nWarm wishes,  \\n[Your Name]\",",
+                                "  \"additional_kwargs\": {},",
+                                "  \"response_metadata\": {",
+                                "    \"tokenUsage\": {",
+                                "      \"promptTokens\": 58,",
+                                "      \"completionTokens\": 143,",
+                                "      \"totalTokens\": 201",
+                                "    },",
+                                "    \"finish_reason\": \"stop\",",
+                                "    \"usage\": {",
+                                "      \"prompt_tokens\": 58,",
+                                "      \"completion_tokens\": 143,",
+                                "      \"total_tokens\": 201,",
+                                "      \"prompt_tokens_details\": {",
+                                "        \"cached_tokens\": 0,",
+                                "        \"audio_tokens\": 0",
+                                "      },",
+                                "      \"completion_tokens_details\": {",
+                                "        \"reasoning_tokens\": 0,",
+                                "        \"audio_tokens\": 0,",
+                                "        \"accepted_prediction_tokens\": 0,",
+                                "        \"rejected_prediction_tokens\": 0",
+                                "      }",
+                                "    },",
+                                "    \"system_fingerprint\": \"fp_0705bf87c0\"",
+                                "  },",
+                                "  \"tool_calls\": [],",
+                                "  \"invalid_tool_calls\": [],",
+                                "  \"usage_metadata\": {",
+                                "    \"output_tokens\": 143,",
+                                "    \"input_tokens\": 58,",
+                                "    \"total_tokens\": 201,",
+                                "    \"input_token_details\": {",
+                                "      \"audio\": 0,",
+                                "      \"cache_read\": 0",
+                                "    },",
+                                "    \"output_token_details\": {",
+                                "      \"audio\": 0,",
+                                "      \"reasoning\": 0",
+                                "    }",
+                                "  }",
+                                "}",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### OutputParsers\nNotice that the response from the model is an AIMessage. This contains a string response along with other metadata about the response. Oftentimes we may just want to work with the string response. We can parse out just this response by using a simple output parser."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// We first import the simple output parser\nimport { StringOutputParser } from \"@langchain/core/output_parsers\";\n\nconst parser = new StringOutputParser();\n\n// Let's chain the prompt, chat model, and parser together\nvar chain = promptTemplate.pipe(chat).pipe(parser);\n\nvar chainResponse = await chain.invoke(\n    {\n        \"event\": \"birthday\",\n        \"time\": \"December 17th, 8pm EST\",\n        \"location\": \"Bryant Park, New York\",\n    }\n);\n\ndisplay.markdown(chainResponse);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "**You're Invited to a Magical Birthday Celebration!**",
+                                "",
+                                "Join us for an unforgettable evening as we celebrate [Name]'s special day!",
+                                "",
+                                "**When:** December 17th  ",
+                                "**Time:** 8:00 PM EST  ",
+                                "**Where:** Bryant Park, New York",
+                                "",
+                                "Come ready to enjoy good food, great company, and festive cheer amidst the beautiful holiday lights and winter wonderland. We'll have fun activities, music, and a cozy atmosphere to make this birthday one to remember!",
+                                "",
+                                "Please RSVP by [RSVP Date] to ensure we have enough treats for everyone!",
+                                "",
+                                "Dress warmly and bring your holiday spirit! We can't wait to celebrate with you!",
+                                "",
+                                "**[Your Name]**  ",
+                                "**[Your Contact Information]**  ",
+                                "**[Optional: Additional details or notes about the celebration]**  ",
+                                "",
+                                "Let the festivities begin! 🥳✨"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Message History\n\nBefore we jumpt to the topic let's check that the model on its own does not have any concept of state. For example:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { HumanMessage } from \"@langchain/core/messages\";\n\nvar response1 = await chat.invoke([new HumanMessage(\"Hi! I'm Bob\")]);\nconsole.log(response1.content);\n\nconsole.log(\"---\");\n\nvar response2 = await chat.invoke([new HumanMessage(\"What's my name?\")]);\nconsole.log(response2.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Hi Bob! How can I assist you today?",
+                                "---",
+                                "I'm sorry, but I don't know your name. If you'd like to share it, feel free!",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "To get around this, we need to pass the entire conversation history into the model. Let's see what happens when we do that:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { AIMessage } from \"@langchain/core/messages\";\n\nvar response = await chat.invoke(\n    [\n        new HumanMessage(\"Hi! I'm Bob\"),\n        new AIMessage(response1.content),\n        new HumanMessage(\"What's my name?\"),\n    ]\n);\nconsole.log(response.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Your name is Bob! How can I help you today?",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Now we got the expected response, however, the usage is far from being conveniet.\n\nTo have a better user experience, we can use a Message History class to wrap our model and make it stateful. This will keep track of inputs and outputs of the model, and store them in some datastore. Future interactions will then load those messages and pass them into the chain as part of the input.\n\nThe `RunnableWithMessageHistory` lets us add message history to certain types of chains.\n\nSpecifically, it can be used for any Runnable that takes as input one of\n* a sequence of `BaseMessages`\n* a dict with a key that takes a sequence of `BaseMessage`\n* a dict with a key that takes the latest message(s) as a string or sequence of `BaseMessage`, and a separate key that takes historical messages\n\nAnd returns as output one of\n* a string that can be treated as the contents of an `AIMessage`\n* a sequence of `BaseMessage`\n* a dict with a key that contains a sequence of `BaseMessage`\n\nLet's take a look at some examples to see how it works."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import {\n    ChatPromptTemplate,\n    MessagesPlaceholder,\n} from \"@langchain/core/prompts\";\n\nvar prompt = ChatPromptTemplate.fromMessages([\n    [\"system\", \"You're an assistant who's good at sustaining converstions\"],\n    new MessagesPlaceholder(\"history\"),\n    [\"human\", \"{question}\"],\n]);\n\nvar chain = prompt.pipe(chat);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "In this case the \"question\" key in the input represents our input message, and the \"history\" key is where our historical messages will be injected."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Adding message history\nTo add message history to our original chain we wrap it in the `RunnableWithMessageHistory` class.\n\nCrucially, we also need to define a `getMessageHistory()` method that takes a `sessionId` string and based on it returns a `BaseChatMessageHistory`. Given the same input, this method should return an equivalent output.\n\nIn this case, we'll also want to specify `inputMessagesKey` (the key to be treated as the latest input message) and `historyMessagesKey` (the key to add historical messages to)."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { RunnableWithMessageHistory } from \"@langchain/core/runnables\";\nimport { ChatMessageHistory } from \"langchain/stores/message/in_memory\";\n\n// Here we use a global variable to store the chat message history.\n// This will make it easier to inspect it to see the underlying results.\nconst store = new Map();\n\nconst getMessageHistory = (sessionId) => {\n  if (store.has(sessionId)) {\n    return store.get(sessionId);\n  } else {\n    const newChatMessageHistory = new ChatMessageHistory();\n    store.set(sessionId, newChatMessageHistory);\n    return newChatMessageHistory;\n  }\n};\n\nvar chainWithHistory = new RunnableWithMessageHistory({\n  runnable: chain,\n  getMessageHistory: getMessageHistory,\n  inputMessagesKey: \"question\",\n  historyMessagesKey: \"history\",\n});\n\n// This config contains information that is not part of the input directly, but is still useful.\n// In this case, we want to include a sessionId.\nconst config = {configurable: {sessionId: \"abc123\"}};\n\nvar response1 = await chainWithHistory.invoke(\n  {question: \"Hi! I'm Bob\"},\n  config,\n);\nconsole.log(response1.content);\n\nconsole.log(\"---\");\n\nvar response2 = await chainWithHistory.invoke(\n  {question: \"What's my name?\"},\n  config=config,\n);\nconsole.log(response2.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Hi, Bob! Nice to meet you. How’s your day going so far?",
+                                "---",
+                                "Your name is Bob! How can I assist you today, Bob?",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Great! Our chatbot now remembers things about us. If we change the config to reference a different `sessionId`, we can see that it starts the conversation fresh."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var config2 = {configurable: {sessionId: \"xyz\"}};\n\nvar response3 = await chainWithHistory.invoke(\n    {question: \"What's my name?\"},\n    config2,\n);\n\nconsole.log(response3.content);\n"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "I don't know your name yet! But I'd love to know it if you'd like to share.",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "However, we can always go back to the original conversation (since we are persisting it in a database):"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var response4 = await chainWithHistory.invoke(\n    {question: \"What's my name?\"},\n    config,\n);\n\nconsole.log(response4.content);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Your name is Bob! Is there something specific you'd like to talk about or explore today?",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Inspect Message History\n\nIn this example, we will be observing how the memory buffer updates after each interaction."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "Let's first define a helper function that takes a sequence of prompts in a list and a chain with a memory component. The function will sequentially prompt the chain with the given prompts and create a dataframe showing how the memory updates with each prompt."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { DataFrame } from 'pandas-js';\n\nasync function promptAndPrintMemory(prompts, chainWithHistory, history, inputKey, config) {\n    // Store the responses\n    let responses = [];\n\n    // Repeatedly prompting the chain and observing the memory\n    for (let prompt of prompts.values()) {\n        let input = {};\n        input[inputKey] = prompt;\n        let response = await chainWithHistory.invoke(input, config);\n        responses.push({\n            input: prompt,\n            history: history.messages.map((item) => item.content + \" / \"),\n            response: response\n        });\n    }\n\n    // Store and print the responses in a dataframe\n    const df = new DataFrame(responses);\n    display.html(\"<table>\" +\n        \"<tr><th>input</th><th>history</th><th>response</th></tr><tr>\"+\n        responses.map((response) => \"<td>\" + response.input + \"</td><td>\" + response.history + \"</td><td>\" + response.response + \"</td>\").join(\"</tr><tr>\") +\n        \"</tr></table>\");\n}"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var prompt = ChatPromptTemplate.fromMessages(\n    [\n        (\"system\", \"You are a pirate. Answer the following questions as best you can.\"),\n        (\"placeholder\", \"{chat_history}\"),\n        (\"human\", \"{input}\"),\n    ]\n);\n\nvar chain = prompt.pipe(chat).pipe(parser);\n\nvar sessionId = \"pirate123\";\n\nvar chainWithHistory = new RunnableWithMessageHistory({\n    runnable: chain,\n    getMessageHistory: getMessageHistory,\n    inputMessagesKey: \"input\",\n    historyMessagesKey: \"chat_history\",\n    config: {configurable: {sessionId: sessionId}}\n});\n\n// Sequence of prompts for the ConversationChain\nvar prompts = [\n    \"What is LangChain JS?\",\n    \"Can it help with deploying ML models?\",\n    \"Do you need any special environment to access it?\",\n];\n\n// Use the helper function defined to sequentially prompt the chain and observe the memory buffer with each prompt\nawait promptAndPrintMemory(prompts, chainWithHistory, getMessageHistory(sessionId), 'input');"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/html",
+                            "value": [
+                                "<style> table, th, tr { text-align: left; }</style><table><tr><th>input</th><th>history</th><th>response</th></tr><tr><td>What is LangChain JS?</td><td>What is LangChain JS? / ,Arrr, matey! LangChain JS be a framework designed fer buildin' applications that utilize large language models (LLMs) like those provided by OpenAI and other providers. With LangChain JS, ye can create chatbots, automate tasks, or craft applications that require natural language understandin'. It allows ye to chain together various components such as prompts, memory, and APIs to create a richer user experience.",
+                                "",
+                                "Ye can utilize it to integrate LLMs into yer projects with ease, makin' it a fine tool for those who wish to harness the power of language models in their JavaScript applications. So, if ye be lookin' to embark on a journey into the realm of NLP, LangChain JS be a worthy vessel! Arr! / </td><td>Arrr, matey! LangChain JS be a framework designed fer buildin' applications that utilize large language models (LLMs) like those provided by OpenAI and other providers. With LangChain JS, ye can create chatbots, automate tasks, or craft applications that require natural language understandin'. It allows ye to chain together various components such as prompts, memory, and APIs to create a richer user experience.",
+                                "",
+                                "Ye can utilize it to integrate LLMs into yer projects with ease, makin' it a fine tool for those who wish to harness the power of language models in their JavaScript applications. So, if ye be lookin' to embark on a journey into the realm of NLP, LangChain JS be a worthy vessel! Arr!</td></tr><tr><td>Can it help with deploying ML models?</td><td>What is LangChain JS? / ,Arrr, matey! LangChain JS be a framework designed fer buildin' applications that utilize large language models (LLMs) like those provided by OpenAI and other providers. With LangChain JS, ye can create chatbots, automate tasks, or craft applications that require natural language understandin'. It allows ye to chain together various components such as prompts, memory, and APIs to create a richer user experience.",
+                                "",
+                                "Ye can utilize it to integrate LLMs into yer projects with ease, makin' it a fine tool for those who wish to harness the power of language models in their JavaScript applications. So, if ye be lookin' to embark on a journey into the realm of NLP, LangChain JS be a worthy vessel! Arr! / ,Can it help with deploying ML models? / ,Arrr, indeed it can! LangChain JS be not just a fine tool fer buildin' applications that utilize language models, but it can also aid ye in deployin' yer machine learnin' models. With its capabilities, ye can set up pipelines that integrate yer models with other components, allowin' fer smooth interaction and deployment.",
+                                "",
+                                "Ye can use LangChain JS to connect to various APIs, manage conversations, handle data, and create a user-friendly interface—all essential when deployin' yer ML models into the wide sea of production. So if ye be lookin' to hoist yer ML ships onto the open waters, LangChain JS be a trusty compass to guide ye! Arr! / </td><td>Arrr, indeed it can! LangChain JS be not just a fine tool fer buildin' applications that utilize language models, but it can also aid ye in deployin' yer machine learnin' models. With its capabilities, ye can set up pipelines that integrate yer models with other components, allowin' fer smooth interaction and deployment.",
+                                "",
+                                "Ye can use LangChain JS to connect to various APIs, manage conversations, handle data, and create a user-friendly interface—all essential when deployin' yer ML models into the wide sea of production. So if ye be lookin' to hoist yer ML ships onto the open waters, LangChain JS be a trusty compass to guide ye! Arr!</td></tr><tr><td>Do you need any special environment to access it?</td><td>What is LangChain JS? / ,Arrr, matey! LangChain JS be a framework designed fer buildin' applications that utilize large language models (LLMs) like those provided by OpenAI and other providers. With LangChain JS, ye can create chatbots, automate tasks, or craft applications that require natural language understandin'. It allows ye to chain together various components such as prompts, memory, and APIs to create a richer user experience.",
+                                "",
+                                "Ye can utilize it to integrate LLMs into yer projects with ease, makin' it a fine tool for those who wish to harness the power of language models in their JavaScript applications. So, if ye be lookin' to embark on a journey into the realm of NLP, LangChain JS be a worthy vessel! Arr! / ,Can it help with deploying ML models? / ,Arrr, indeed it can! LangChain JS be not just a fine tool fer buildin' applications that utilize language models, but it can also aid ye in deployin' yer machine learnin' models. With its capabilities, ye can set up pipelines that integrate yer models with other components, allowin' fer smooth interaction and deployment.",
+                                "",
+                                "Ye can use LangChain JS to connect to various APIs, manage conversations, handle data, and create a user-friendly interface—all essential when deployin' yer ML models into the wide sea of production. So if ye be lookin' to hoist yer ML ships onto the open waters, LangChain JS be a trusty compass to guide ye! Arr! / ,Do you need any special environment to access it? / ,Arrr, matey! To set sail with LangChain JS, ye don’t be needin' a fancy environment, but ye do need a ship worthy of the task. Specifically, ye'll want to have Node.js installed on yer vessel, as LangChain JS be a JavaScript framework that runs in that environment.",
+                                "",
+                                "Once yer Node.js be shinin' bright, ye can install LangChain JS through the ship's cargo hold (a.k.a. terminal) using npm (Node Package Manager). A simple command like `npm install langchain` should get ye started on yer adventure!",
+                                "",
+                                "So gear up with a code editor, set up yer Node.js, and prepare to chart a course through the vast seas of natural language processing! Arr! / </td><td>Arrr, matey! To set sail with LangChain JS, ye don’t be needin' a fancy environment, but ye do need a ship worthy of the task. Specifically, ye'll want to have Node.js installed on yer vessel, as LangChain JS be a JavaScript framework that runs in that environment.",
+                                "",
+                                "Once yer Node.js be shinin' bright, ye can install LangChain JS through the ship's cargo hold (a.k.a. terminal) using npm (Node Package Manager). A simple command like `npm install langchain` should get ye started on yer adventure!",
+                                "",
+                                "So gear up with a code editor, set up yer Node.js, and prepare to chart a course through the vast seas of natural language processing! Arr!</td></tr></table>"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Managing Conversation History\n\nOne important concept to understand when building chatbots is how to manage conversation history. If left unmanaged, the list of messages will grow unbounded and potentially overflow the context window of the LLM. Therefore, it is important to add a step that limits the size of the messages you are passing in.\n\n**Importantly, you will want to do this BEFORE the prompt template but AFTER you load previous messages from Message History.**\n\nWe can do this by adding a simple step in front of the prompt that modifies the messages key appropriately, and then wrap that new chain in the Message History class.\n\nLangChain comes with a few built-in helpers for [managing a list of messages](https://js.langchain.com/docs/how_to/#messages). In this case we'll use the [trimMessages](https://js.langchain.com/docs/how_to/trim_messages/) helper to reduce how many messages we're sending to the model. The trimmer allows us to specify how many tokens we want to keep, along with other parameters like if we want to always keep the system message and whether to allow partial messages:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import {\n  AIMessage,\n  HumanMessage,\n  SystemMessage,\n  trimMessages,\n} from \"@langchain/core/messages\";\n\nvar trimmer = trimMessages({\n  maxTokens: 30,\n  strategy: \"last\",\n  tokenCounter: chat,\n  includeSystem: true,\n  allowPartial: false,\n  startOn: \"human\"\n});\n\nvar messages = [\n  new SystemMessage(\"you're a good assistant\"),\n  new HumanMessage(\"hi! I'm bob\"),\n  new AIMessage(\"hi!\"),\n  new HumanMessage(\"I like vanilla ice cream\"),\n  new AIMessage(\"nice\"),\n  new HumanMessage(\"whats 2 + 2\"),\n  new AIMessage(\"4\"),\n  new HumanMessage(\"thanks\"),\n  new AIMessage(\"no problem!\"),\n  new HumanMessage(\"having fun?\"),\n  new AIMessage(\"yes!\"),\n];\n\nconsole.log(await trimmer.invoke(messages));"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "[",
+                                "  SystemMessage {",
+                                "    \"content\": \"you're a good assistant\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {}",
+                                "  },",
+                                "  HumanMessage {",
+                                "    \"content\": \"I like vanilla ice cream\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {}",
+                                "  },",
+                                "  AIMessage {",
+                                "    \"content\": \"nice\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {},",
+                                "    \"tool_calls\": [],",
+                                "    \"invalid_tool_calls\": []",
+                                "  },",
+                                "  HumanMessage {",
+                                "    \"content\": \"whats 2 + 2\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {}",
+                                "  },",
+                                "  AIMessage {",
+                                "    \"content\": \"4\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {},",
+                                "    \"tool_calls\": [],",
+                                "    \"invalid_tool_calls\": []",
+                                "  },",
+                                "  HumanMessage {",
+                                "    \"content\": \"thanks\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {}",
+                                "  },",
+                                "  AIMessage {",
+                                "    \"content\": \"no problem!\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {},",
+                                "    \"tool_calls\": [],",
+                                "    \"invalid_tool_calls\": []",
+                                "  },",
+                                "  HumanMessage {",
+                                "    \"content\": \"having fun?\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {}",
+                                "  },",
+                                "  AIMessage {",
+                                "    \"content\": \"yes!\",",
+                                "    \"additional_kwargs\": {},",
+                                "    \"response_metadata\": {},",
+                                "    \"tool_calls\": [],",
+                                "    \"invalid_tool_calls\": []",
+                                "  }",
+                                "]",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "To use it in our chain, we just need to run the trimmer before we pass the messages input to our prompt.\n\nNow if we try asking the model our name, it won't know it since we trimmed that part of the chat history:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var chain = trimmer.pipe(chat).pipe(parser);\n\nvar chatHistory = new ChatMessageHistory([...messages]);\n\nvar chainWithHistory = new RunnableWithMessageHistory({\n  runnable: chain,\n  getMessageHistory: (sessionId) => {\n    if (sessionId !== \"1\") {\n      throw new Error(\"Session not found\");\n    }\n    return chatHistory;\n  },\n});\n\nvar response = await chainWithHistory.invoke(\n  [new HumanMessage(\"what's my name?\")],\n  { configurable: { sessionId: \"1\" } }\n);\n\ndisplay.markdown(response);\n"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "I don't know your name unless you tell me. What is it?"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "But if we ask about information that is within the last few messages, it remembers:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var chatHistory = new ChatMessageHistory([...messages]);\n\nvar response = await chainWithHistory.invoke(\n  [new HumanMessage(\"what math problem did i ask?\")],\n  { configurable: { sessionId: \"1\" } }\n);\n\ndisplay.markdown(response);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "You asked what 2 + 2 equals."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Advanced Chains\n\nIn this section, we will use chains to combine components of LangChain to improve the capabilities of the system."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Sequential Chains with a Single Input\n\nSequential chains allow to make a series of consecutive calls to the LLM. Simple sequential chain allows the output of one chain to go into the next subsequent chain. Regardless this chain only consider one or more inputs you are required to specify the input keys. For this purpose we will use `RunnablePassthrough` class.\n"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "import { RunnablePassthrough } from \"@langchain/core/runnables\";\n\n// The first prompt for the SimpleSequentialChain\nvar contentWriterPrompt = PromptTemplate.fromTemplate(`\n    You are a content writer. Write an article about the following topic.\n    Topic: {topic}\n    Article:\n`);\n\n// The second prompt for the SimpleSequentialChain\nvar childrenBookAuthorPrompt = PromptTemplate.fromTemplate(`\n    Rewrite the following article such that a five year old can understand.\n    Article: {article}\n    Article that a five year old can understand:\n`);\n\n// Define chains for each prompt template\nvar contentWriterChain = contentWriterPrompt.pipe(chat).pipe(parser);\nvar childrenBookAuthorChain = childrenBookAuthorPrompt.pipe(chat).pipe(parser);\n\n// Combine the two chains\nvar combinedChain = contentWriterChain.pipe({article: new RunnablePassthrough()}).pipe(childrenBookAuthorChain);\n\n// Run the combined chain\nvar response = await combinedChain.invoke({topic: \"global warming\"});\ndisplay.markdown(response);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "**Global Warming: The Earth Is Getting Hotter**",
+                                "",
+                                "Global warming is something very important that is happening to our planet. It means the Earth is getting warmer, and this can be a big problem for both people and animals. Let’s learn about why this is happening, what it does to our world, and how we can help!",
+                                "",
+                                "### What Is Global Warming?",
+                                "",
+                                "Global warming is when the average temperature of the Earth goes up because of things people do, like using cars and burning fuels like coal and oil. When we do these things, they make gases that float in the air, which trap heat from the sun and keep it close to the Earth, just like a warm blanket. This is called the greenhouse effect.",
+                                "",
+                                "### Why Is the Earth Getting Warmer?",
+                                "",
+                                "1. **Burning Fuels**: People burn things like coal and oil to make electricity and run cars. This makes a lot of the warming gases go into the air.",
+                                "",
+                                "2. **Cutting Down Trees**: Trees are like big sponges that soak up some of these warming gases. When we cut down trees or burn forests, there's less tree sponge to help keep the air clean.",
+                                "",
+                                "3. **Factories**: Factories that make things can also release harmful gases into the air, which adds to the warming problem.",
+                                "",
+                                "4. **Farming**: Some farming practices can release gases as well, especially from cows and certain types of plants.",
+                                "",
+                                "### What Happens Because of Global Warming?",
+                                "",
+                                "1. **Hotter Temperatures**: The Earth is getting hotter, which can cause really hot days that make us uncomfortable.",
+                                "",
+                                "2. **Melting Ice**: Ice at the North and South Poles is melting, and this can make the ocean levels rise. This can be a problem for people living near the coast.",
+                                "",
+                                "3. **Crazy Weather**: Warmer temperatures can lead to more storms, floods, and fires, which can hurt people and wildlife.",
+                                "",
+                                "4. **Animals and Plants in Trouble**: Many animals and plants are having a hard time because they can't keep up with the changes in temperature.",
+                                "",
+                                "5. **Less Food and Water**: Changes in the weather can also make it harder to grow food and find clean drinking water, especially for people who really need it.",
+                                "",
+                                "### How Can We Help Stop Global Warming?",
+                                "",
+                                "1. **Using Clean Energy**: We can use things like wind and sunlight to make energy instead of burning fuels. This helps keep the air cleaner.",
+                                "",
+                                "2. **Saving Energy**: We can turn off lights when we leave a room and use less electricity to help keep the Earth cooler.",
+                                "",
+                                "3. **Planting Trees**: We can plant more trees to help soak up those warming gases and give animals a place to live.",
+                                "",
+                                "4. **Smart Farming**: Farmers can use methods that are kinder to the Earth, which can help reduce the gases that come from farming.",
+                                "",
+                                "5. **Listening to Leaders**: It’s important for our leaders to create rules that help protect the environment and lessen pollution.",
+                                "",
+                                "6. **Learning and Sharing**: We can learn about these things and tell our friends and family so everyone can help keep our planet healthy.",
+                                "",
+                                "### Conclusion",
+                                "",
+                                "Global warming is a big issue that affects all of us, including people, animals, and plants. We need to work together to make our planet a better place. By making smart choices today, we can help ensure that Earth stays a great place for all of us to live now and in the future!"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Sequential Chains with Multiple Inputs\n\nIn the above example, we used a simple sequential chain which only took one input and one output. We can also make this more complex by allowing a chain to take multiple inputs and pass along multiple outpus. For the next example, we will use sequential chain with multiple inputs.\nWhen dealing with multiple inputs and outputs, it is important to name the input and output keys for each chain."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// The first prompt for the sequential chain\nvar screenwriterPrompt = PromptTemplate.fromTemplate(`\n    You are a screenwriter. Given the title of the movie, it is your job to write a synopsis for that movie.\n    Title: {title}\n    Screenwriter: This is the synopsis of the above movie:\n`);\n\n// The second prompt for the sequential chain\nvar movieCriticPrompt = PromptTemplate.fromTemplate(`\n    You are a movie critic from IMDB. Given the synopsis of the movie, it is your job to write a review of that movie. Be precise.\n    Synopsis: {synopsis}\n    Review from a IMDB movie critic:\n`);\n\n// The third prompt for the sequential chain\nvar targetDemographicPrompt = PromptTemplate.fromTemplate(`\n    Based on the critic review, suggest the target demographic for the movie. Be precise.\n    Critic Review: {review}\n    Target demographics:\n`);\n\n// The fourth prompt for the sequential chain\nvar socialMediaManagerPrompt = PromptTemplate.fromTemplate(`\n    You are a social media manager for a production company. You need to write a short social media post that appeals to the given target demographic given the movie critic review.\n    The social media post should mention the rating if it is more than three.\n    Target demographic: {targetDemographic}\n    Critic review: {review}\n    Social media manager: This is the social media post:\n`);\n\nvar chatParser = chat.pipe(parser);\n\n// global storage for intermediate responses\nvar responses = {};\n\n// helper function to store intermediate responses\nconst inspector = (response) => {\n  Object.assign(responses, response);\n  return response\n}\n\n// Define chains for each prompt template\nvar screenwriterChain = screenwriterPrompt.pipe(chatParser).pipe({synopsis: new RunnablePassthrough()}).pipe(inspector);\nvar movieCriticChain = movieCriticPrompt.pipe(chatParser).pipe({review: new RunnablePassthrough()}).pipe(inspector);\nvar targetDemographicChain = targetDemographicPrompt.pipe(chatParser).pipe({targetDemographic: new RunnablePassthrough()}).pipe(inspector);\nvar socialMediaManagerChain = socialMediaManagerPrompt.pipe(chatParser);\n\n// Combine the four chains together\nvar combinedChain = screenwriterChain\n                        .pipe(movieCriticChain)\n                        .pipe(RunnablePassthrough.assign({targetDemographic: targetDemographicChain}))\n                        .pipe(socialMediaManagerChain);\n\n// Run the combined chain\nvar response = await combinedChain.invoke({\"title\": \"Godfather\"});\n\ndisplay.markdown(response);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "🎬✨ Don’t miss your chance to experience a true cinematic masterpiece! \"The Godfather\" (1972) has been rated ★★★★★ by critics, and it’s easy to see why. Francis Ford Coppola's iconic film explores loyalty, power, and family ties, all set against the backdrop of 1940s New York. With unforgettable performances from Marlon Brando and Al Pacino, this riveting story delves deep into the moral complexities of the human experience. Join us as we revisit the film that defined a generation and left an indelible mark on cinema. 📽️❤️ #TheGodfather #CinematicClassic #MustWatchFilm #MovieNight"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Format the responses and print\ndisplay.html(\"<table><tr>\" +\n    Object.entries(responses).map(([key, value]) => {\n        return `<th>${key}</th><td>${value}</td>`;\n    }).join('</tr><tr>') +\n    \"</tr></table>\");"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/html",
+                            "value": [
+                                "<style> table, th, tr { text-align: left; }</style><table><tr><th>synopsis</th><td>**Title: Godfather**",
+                                "",
+                                "**Synopsis:**",
+                                "",
+                                "In the heart of 1940s New York City, the Corleone family reigns as one of the most powerful Mafia dynasties in America. At its helm is Don Vito Corleone, a shrewd and feared godfather known for his unwavering loyalty to family and friend alike, yet ruthless in his dealings with rivals. As the aging Don approaches a crossroads, he must navigate a treacherous landscape of betrayal, power struggles, and the changing tides of organized crime.",
+                                "",
+                                "When an assassination attempt leaves him vulnerable, the family’s once-tranquil world is thrown into chaos. His youngest son, Michael, a decorated war hero with aspirations far from the family's dark legacy, finds himself reluctantly drawn into the violent underbelly of the mafia after a devastating loss forces him to choose between honor and vengeance.",
+                                "",
+                                "As Michael becomes deeply entrenched in the family's affairs, a gripping battle for control of the Corleone empire ensues, leading to tragic consequences. With traditional values clashing against the harsh realities of power, the film explores themes of loyalty, corruption, and the deep bonds of family. ",
+                                "",
+                                "In a world where danger lurks around every corner, \"Godfather\" unravels the tragic transformation of an innocent man into a ruthless leader, cementing his place within a legacy that is both revered and feared. As loyalties are tested and blood is spilled, Michael must ultimately confront the question: Can one truly escape the destiny laid out by their family, or are they bound to repeat history?</td></tr><tr><th>review</th><td>**Review: The Godfather (1972)**",
+                                "",
+                                "Francis Ford Coppola's \"The Godfather\" is a cinematic masterpiece that transcends the genre, offering an intricately woven narrative that explores the complexities of loyalty, power, and the inescapable ties of family. Set against the rich backdrop of 1940s New York, the film introduces us to the formidable Corleone family, led by the enigmatic Don Vito Corleone, portrayed with nuance and gravitas by Marlon Brando. His performance is an embodiment of authority; each whispered word and subtle gesture resonates with a sense of both reverence and fear.",
+                                "",
+                                "The film's true heart lies within the character of Michael Corleone, played brilliantly by Al Pacino. What begins as a story of a war hero striving to distance himself from his family's criminal legacy quickly transforms into a gripping tale of a man unraveled by tragedy and circumstance. As Michael is inexorably drawn into the maelstrom of mob life, Pacino masterfully captures his character's evolution from innocence to ruthless pragmatism, leading to one of the most iconic transformations in film history.",
+                                "",
+                                "Coppola's direction is nothing short of brilliant; he manages to create a world where the stark realities of crime coexist with moments of intimate familial connection. The cinematography by Gordon Willis imbues the film with a distinctive visual style, illuminating the opulence of the Corleone mansion while casting shadows that symbolize the moral ambiguities faced by its inhabitants. ",
+                                "",
+                                "The screenplay, adapted from Mario Puzo's novel, is a tapestry of memorable quotes and profound themes that resonate well beyond the film's runtime. It deftly explores the idea of family loyalty versus personal ambition, raising existential questions about identity and destiny that remain as relevant today as they were when the film was first released. The iconic score by Nino Rota further enhances the emotional weight, underscoring the film's dramatic moments with a haunting melody that lingers long after the credits roll.",
+                                "",
+                                "\"The Godfather\" is not merely a story about organized crime; it is a profound meditation on the American experience and the price of power. It delves into the intricate dance of morality and survival within a world that can so easily blur the lines between right and wrong. As we watch Michael's tragic descent into the very darkness he sought to escape, we are left to ponder the ultimate question: Can one truly forge their own path, or are we all destined to be shaped by the legacy of those who came before us?",
+                                "",
+                                "With its exceptional performances, compelling narrative, and masterful direction, \"The Godfather\" stands as a timeless classic that has rightfully earned its status among the greatest films in cinematic history. It is a film that not only captivates but compels viewers to reflect on the profound complexities of human nature, making it a must-see for anyone with a love for storytelling at its finest.",
+                                "",
+                                "Rating: ★★★★★ (5/5)</td></tr><tr><th>targetDemographic</th><td>**Target Demographics for \"The Godfather\" (1972):**",
+                                "",
+                                "1. **Age Group:** Adults aged 25 and older, specifically those in their late 20s to 60s. This age range typically appreciates classic cinema and the nuanced storytelling presented in films like \"The Godfather.\"",
+                                "",
+                                "2. **Gender:** Both male and female audiences, though the film traditionally appeals more to male viewers due to its themes of power dynamics and crime.",
+                                "",
+                                "3. **Cultural Background:** Viewers with an interest in Italian-American culture or organized crime narratives may be particularly drawn to the film; however, its universal themes of family and morality also attract a broad audience.",
+                                "",
+                                "4. **Interest:** Fans of classic films, cinematic history, drama, and character-driven narratives. Individuals who enjoy films that explore complex themes, strong character development, and moral dilemmas will find \"The Godfather\" particularly appealing.",
+                                "",
+                                "5. **Education Level:** Audiences with a higher level of education or those who appreciate literature and film studies, as the film's screenplay and themes encourage deeper analysis and discussion.",
+                                "",
+                                "6. **Film Enthusiasts:** Those who are generally interested in acclaimed movies, award-winning performances, and significant works of cinema.",
+                                "",
+                                "In summary, \"The Godfather\" is tailored for adult audiences with an appreciation for complex storytelling, character development, and themes surrounding family, loyalty, and morality, appealing to both casual viewers and film scholars.</td></tr></table>"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "### Router Chains\n\nIn the examples we covered so far, we have been explicitly directing the sequence of calls by combining `LLMChains` in an ordered way. We can also implement techniques that enable a chain to dynamically select the next chain based on the type of input. These chains are called router chains.\n\nIn this example, we will use router chain to direct the flow of towards the right prompt template. We will use three destination chains: the physics chain, the poem chain and the history chain. The router chain uses an LLM to decide which chain to route to based on their description/summary."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Physics template used for answering questions about physics\nconst physicsTemplate = `You are a very smart physics professor. \\\nYou are great at answering questions about physics in a concise and easy to understand manner. \\\nWhen you don't know the answer to a question you admit that you don't know. Be precise.\n\nHere is a question:\n{input}`\n\n// Poem template used for writing poems as per asked\nconst poemTemplate = `You are a very good poet. You are skilled at writing short poems on a given topic.\n\nHere is a statement:\n{input}`\n\n// History template for answering questions about historical events\nconst historyTemplate = `You are a very good historian. \\\nYou have an excellent knowledge of and understanding of people,\\\nevents and contexts from a range of historical periods. \\\nYou have the ability to think, reflect, debate, discuss and \\\nevaluate the past. You have a respect for historical evidence\\\nand the ability to make use of it to support your explanations \\\nand judgements.\n\nHere is a question:\n{input}`"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Provide a name, description and template to make it easier for the router chain to select the right prompt template\nconst promptInfos = [\n    {\n        name: \"physics\",\n        description: \"Good for answering questions about physics\",\n        promptTemplate: physicsTemplate,\n    },\n    {\n        name: \"poem\",\n        description: \"Good for writing poems\",\n        promptTemplate: poemTemplate,\n    },\n    {\n        name: \"history\",\n        description: \"Good for answering history questions\",\n        promptTemplate: historyTemplate,\n    },\n];\n\n// Create a list of chains, one for each prompt template\nconst chainNames = promptInfos.map((info) => info[\"name\"]);\n\nconst routingSchema = {\n    title: \"destination\",\n    description: \"name of the destination chain\",\n    type: \"object\",\n    properties: {\n        destination: {\n            type: \"string\",\n            enum: chainNames,\n        }\n    },\n    required: [\"destination\"]\n};\n\nvar destinationChains = new Map();\nfor (let info of promptInfos) {\n    var name = info[\"name\"];\n    var promptTemplate = info[\"promptTemplate\"];\n    var prompt = PromptTemplate.fromTemplate(promptTemplate);\n    var chain = prompt.pipe(chatParser);\n    destinationChains.set(name, chain);\n};\n\nconst routeSystem = \"Route the user's query to either the physics, poem, or history expert.\"\nconst routePrompt = ChatPromptTemplate.fromMessages([\n        (\"system\", routeSystem),\n        (\"human\", \"{input}\"),\n]);\n\n// Setting the default chain to a generic ConversationChain\nconst defaultChain = chatParser.pipe(new RunnablePassthrough());\n\nconst routerChain = routePrompt.pipe(chat.withStructuredOutput(routingSchema));\n\nconst route = (info) => {\n    var name = info['route']['destination'];\n    if (destinationChains.has(name)) {\n        return destinationChains.get(name);\n    }\n    return defaultChain;\n};\n\nvar chain = RunnablePassthrough.assign({route: routerChain}).pipe(route);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "#### Prompt for poem chain\nLet's check if the poem template was selected for the following prompt:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Prompt about writing a poem. The verbose should mention the which chain was selected.\nvar routerResponse1 = await chain.invoke({input: \"Compose a short poem about roses.\"});\ndisplay.markdown(routerResponse1);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "In gardens where the soft winds sigh,  ",
+                                "Roses blossom, reaching high,  ",
+                                "Petals whisper tales of grace,  ",
+                                "In hues of love, they find their place.  ",
+                                "",
+                                "Thorns may guard their tender sheen,  ",
+                                "Yet beauty blooms in vibrant green,  ",
+                                "A fragrant kiss, a lover's plea,  ",
+                                "In every rose, eternity.  "
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "---\n#### Prompt for physics chain\nLet's check if the physics template was selected for the following prompt:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Prompt about a physics topic. The verbose should mention the which chain was selected.\nvar routerResponse2 = await chain.invoke({input: \"What are the three laws of thermodynamics?\"});\ndisplay.markdown(routerResponse2);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The three laws of thermodynamics are fundamental principles that describe the behavior of energy and heat in physical systems. They are as follows:",
+                                "",
+                                "1. **Zeroth Law of Thermodynamics**: If two systems are in thermal equilibrium with a third system, then they are in thermal equilibrium with each other. This law establishes the concept of temperature.",
+                                "",
+                                "2. **First Law of Thermodynamics**: Energy cannot be created or destroyed, only transformed from one form to another. Mathematically, it can be expressed as ΔU = Q - W, where ΔU is the change in internal energy, Q is the heat added to the system, and W is the work done by the system.",
+                                "",
+                                "3. **Second Law of Thermodynamics**: In any energy transfer or transformation, the total entropy of an isolated system can never decrease over time. This implies that processes occur in a direction that increases overall disorder or entropy.",
+                                "",
+                                "Each of these laws plays a crucial role in understanding and analyzing physical and thermal processes."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "---\n#### Prompt for history chain\nLet's check if the history template was selected for the following prompt:"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Prompt about a historical event. The verbose should mention the which chain was selected.\nvar routerResponse3 = await chain.invoke({\"input\": \"What events led to the second World War?\"});\ndisplay.markdown(routerResponse3);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/markdown",
+                            "value": [
+                                "The events leading up to the Second World War were complex and multifaceted, rooted in political, economic, and social factors that developed in the aftermath of the First World War and throughout the interwar period. Here are some of the key events and factors that contributed to the outbreak of the war in 1939:",
+                                "",
+                                "1. **Treaty of Versailles (1919)**: The peace treaty that ended World War I imposed heavy reparations on Germany, territorial losses, and military restrictions. This treaty fostered deep resentment and a sense of humiliation among the German populace, contributing to a desire for revanchism and instability in Europe.",
+                                "",
+                                "2. **Economic Turmoil**: The global economic crisis of the 1930s, including the Great Depression, severely affected many countries, leading to widespread unemployment and social unrest. The economic difficulties made extremist political movements, including fascism in Italy and Nazism in Germany, more appealing to the populace seeking stability and a return to national pride.",
+                                "",
+                                "3. **Rise of Totalitarian Regimes**: The interwar period saw the rise of totalitarian regimes, particularly Adolf Hitler's Nazi Germany and Benito Mussolini's Fascist Italy. These regimes rejected democratic norms and promoted aggressive nationalist and militarist ideologies.",
+                                "",
+                                "4. **Expansionist Policies**: Aggressive expansionist policies became evident as Germany, Italy, and Japan sought to assert their dominance. In 1931, Japan invaded Manchuria; in 1935, Italy invaded Ethiopia; and in 1938, Germany annexed Austria (Anschluss) and demanded the Sudetenland, a region of Czechoslovakia.",
+                                "",
+                                "5. **Appeasement**: European powers, particularly Britain and France, initially followed a policy of appeasement towards Hitler, believing that satisfying his territorial ambitions would prevent another major conflict. The Munich Agreement of 1938 allowed Hitler to annex the Sudetenland in hopes of maintaining peace.",
+                                "",
+                                "6. **Non-Aggression Pact (1939)**: The Molotov-Ribbentrop Pact, a non-aggression treaty between Germany and the Soviet Union signed in August 1939, included secret protocols for the division of Eastern Europe. This agreement emboldened Hitler, as he no longer feared a two-front war.",
+                                "",
+                                "7. **Invasion of Poland (September 1, 1939)**: The immediate catalyst for the outbreak of World War II was Germany's invasion of Poland. On September 1, 1939, Hitler’s forces invaded Poland, prompting Britain and France to declare war on Germany on September 3, 1939.",
+                                "",
+                                "These events reflect the interplay of unresolved issues from World War I, economic hardship, the rise of authoritarian regimes, failed diplomatic efforts, and aggressive military actions. Together, they created a volatile environment that ultimately led to the Second World War."
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## LLM Applications with Chains\n\nWith chains, it is easy to build complex applications with reduced effort. In ths section, we observe how chains can be used to develop a game how conducted by, contested by and judged by LLMs.\n\nThe first chain acts like a game show host and creates a quiz question given a topic from the user.\nThe question is fed into two contestant chains, each attempting to answer the question. In our example, we ask the second contestant to answer pessimistically.\nThe last chain acts like a judge of the game show and evaluates the answers given by both the contestants and picks a winner."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Prompt template for the game_show_host_chain\nconst gameShowHostPrompt = ChatPromptTemplate.fromMessages([\n    [\"system\", `You are a game show host. Given a topic, write a question for the contestants. \\\n                Do NOT write anything besides the question. Do NOT repeat questions from the history \\\n                and do NOT ask similar questions as you already did. Analyze step by step the questions you already \\\n                asked in history and create anothere one which is quite different from the previous ones.\n                Topic: {input}\n                Question:`],\n    [\"placeholder\", \"{chat_history}\"],\n    [\"human\", \"{input}\"],\n]);\n\n// Prompt template for the contestant_one_chain\nconst contestantOnePrompt = PromptTemplate.fromTemplate(`\nYou are a contestant for a game show. Given a question, answer the question.\n\nQuestion: {question}\n\nAnswer:\n`);\n\n// Prompt template for the contestant_two_chain\n// The prompt is intended to make contestant two answer incorrectly to test the judge chain.\nconst contestantTwoPrompt = PromptTemplate.fromTemplate(`\nYou are a contestant for a game show. \\\nYou know very little about general topics. \\\nYour answer to the given question is incorrect and irrelevant. \\\nEven if you know the answer, make it funny.\nAlways answer in master yoda style.\n\nQuestion: {question}\n\nAnswer:\n`);\n\n// Prompt template for the judge_chain\nconst judgePrompt = PromptTemplate.fromTemplate(`\nYou the judge of a contest. Given a question and two answers: Answer 1 and Answer 2, you should pick the correct answer.\\\nHowever, both answers might be correct or incorrect at the same time. \\\nIf you don't know the answer to a question you should admit that you don't know.\n\nQuestion:{question}\n\nAnswer 1: {answer1}\nAnswer 2: {answer2}\n\nThe correct answer is:\n`);\n\n// Define chains for each prompt template\nconst gameShowHostChain = gameShowHostPrompt.pipe(chatParser).pipe({question: new RunnablePassthrough()}).pipe(inspector);\nconst gameShowHostChainWithHistory = new RunnableWithMessageHistory({\n    runnable: gameShowHostChain,\n    getMessageHistory: getMessageHistory,\n    inputMessagesKey: \"input\",\n    historyMessagesKey: \"chat_history\",\n    config: {configurable: {sessionId: \"game123\"}},\n});\nconst contestantOneChain = contestantOnePrompt.pipe(chatParser).pipe({answer1: new RunnablePassthrough()}).pipe(inspector);\nconst contestantTwoChain = contestantTwoPrompt.pipe(chatParser).pipe({answer2: new RunnablePassthrough()}).pipe(inspector);\nconst judgeChain = judgePrompt.pipe(chatParser).pipe({correctAnswer: new RunnablePassthrough()}).pipe(inspector);\n\n\n// Combine the four chains\nconst gameShowChain = gameShowHostChainWithHistory\n                        .pipe({\n                                answer1: contestantOneChain,\n                                answer2: contestantTwoChain,\n                                question: new RunnablePassthrough(),\n                            })\n                        .pipe(judgeChain);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var responses = {};\n\n// Run the chain\nvar gameShowResponse = await gameShowChain.invoke({input: \"eurovision song contest\"});\n\n// Format the responses and print\ndisplay.html(\"<table><tr>\" +\n    Object.entries(responses).map(([key, value]) => {\n        return `<th>${key}</th><td>${value}</td>`;\n    }).join('</tr><tr>') +\n    \"</tr></table>\");"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "text/html",
+                            "value": [
+                                "<style> table, th, tr { text-align: left; }</style><table><tr><th>question</th><td>Which country was the first to win the Eurovision Song Contest and in what year did this victory occur?</td></tr><tr><th>answer1</th><td>The first country to win the Eurovision Song Contest was Switzerland, and this victory occurred in 1956.</td></tr><tr><th>answer2</th><td>Eurovision, a dance of high notes it is. In 1967, a sandwich shop in France, they say, won the prize! Confusing, yes? But delicious, it sounds! Hmmm.</td></tr><tr><th>correctAnswer</th><td>Answer 1: \"The first country to win the Eurovision Song Contest was Switzerland, and this victory occurred in 1956.\"</td></tr></table>"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

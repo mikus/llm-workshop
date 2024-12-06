@@ -1,8 +1,17 @@
 {
   "dependencies": {
-    "@langchain/core": "^0.3.19",
+    "@babel/runtime": "^7.26.0",
+    "@langchain/community": "^0.3.17",
+    "@langchain/core": "^0.3.22",
     "@langchain/openai": "^0.3.14",
+    "@langchain/textsplitters": "^0.1.0",
+    "babel-runtime": "^6.26.0",
+    "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
-    "langchain": "^0.3.6"
+    "duck-duck-scrape": "^2.2.6",
+    "faiss-node": "^0.5.1",
+    "langchain": "^0.3.6",
+    "pandas-js": "^0.2.4",
+    "pdf-parse": "^1.1.1"
   }
 }
